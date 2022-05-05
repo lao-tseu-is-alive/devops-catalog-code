@@ -13,14 +13,9 @@ variable "cluster_name" {
   default = "devops-catalog"
 }
 
-variable "min_node_count" {
+variable "node_count" {
   type    = number
   default = 1
-}
-
-variable "max_node_count" {
-  type    = number
-  default = 3
 }
 
 variable "machine_type" {
@@ -35,7 +30,7 @@ variable "image_type" {
 
 variable "preemptible" {
   type    = bool
-  default = true
+  default = false
 }
 
 variable "billing_account_id" {
