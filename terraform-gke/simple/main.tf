@@ -62,7 +62,7 @@ resource "google_container_node_pool" "primary_nodes" {
 
 resource "null_resource" "kubeconfig" {
   provisioner "local-exec" {
-    command = "KUBECONFIG=$PWD/kubeconfig gcloud container clusters get-credentials ${var.cluster_name} --project ${google_project.main.project_id} --region ${var.region}"
+    command = "USE_GKE_GCLOUD_AUTH_PLUGIN=True KUBECONFIG=$PWD/kubeconfig gcloud container clusters get-credentials ${var.cluster_name} --project ${google_project.main.project_id} --region ${var.region}"
   }
   depends_on = [
     google_container_cluster.primary,
@@ -72,15 +72,33 @@ resource "null_resource" "kubeconfig" {
 resource "null_resource" "destroy-kubeconfig" {
   provisioner "local-exec" {
     when    = destroy
-    command = "rm -f $PWD/kubeconfig"
+    command = "rm -f $PWD/kubeconfig $PWD/gke_gcloud_auth_plugin_cache"
   }
 }
 
 resource "null_resource" "ingress-nginx" {
   count = var.ingress_nginx == true ? 1 : 0
   provisioner "local-exec" {
-    command = "KUBECONFIG=$PWD/kubeconfig kubectl apply --filename https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/cloud/deploy.yaml"
+    command = "KUBECONFIG=$PWD/kubeconfig kubectl apply --filename https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.0/deploy/static/provider/cloud/deploy.yaml"
   }
+  depends_on = [
+    null_resource.kubeconfig,
+  ]
+}
+
+provider "helm" {
+  kubernetes {
+    config_path = "kubeconfig"
+  }
+}
+
+resource "helm_release" "ingress-traefik" {
+  count = var.ingress_traefik == true ? 1 : 0
+  name = "traefik"
+  repository = "https://helm.traefik.io/traefik"
+  chart = "traefik"
+  namespace = "traefik"
+  create_namespace = true
   depends_on = [
     null_resource.kubeconfig,
   ]
